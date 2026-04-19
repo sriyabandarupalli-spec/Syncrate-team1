@@ -3,10 +3,42 @@
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { supabase } from '../../lib/supabase';
 
 export default function SignupScreen() {
   const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [repeatPassword, setRepeatPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleSignUp() {
+    if (password !== repeatPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    if (!displayName) {
+      Alert.alert('Error', 'Please enter a display name');
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { display_name: displayName } },
+    });
+    setLoading(false);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      router.push('/accounttype');
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -29,6 +61,8 @@ export default function SignupScreen() {
           placeholder="Enter your email"
           placeholderTextColor="#666"
           keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
         />
 
         {/* password input */}
@@ -38,6 +72,8 @@ export default function SignupScreen() {
           placeholder="Create a password"
           placeholderTextColor="#666"
           secureTextEntry
+          value={password}
+          onChangeText={setPassword}
         />
 
         {/* repeat password input */}
@@ -47,6 +83,8 @@ export default function SignupScreen() {
           placeholder="Repeat your password"
           placeholderTextColor="#666"
           secureTextEntry
+          value={repeatPassword}
+          onChangeText={setRepeatPassword}
         />
 
         {/* display name input */}
@@ -55,17 +93,19 @@ export default function SignupScreen() {
           style={styles.input}
           placeholder="Enter your display name"
           placeholderTextColor="#666"
+          value={displayName}
+          onChangeText={setDisplayName}
         />
 
-        {/* sign up button → goes to choose account type screen */}
-        <TouchableOpacity onPress={() => router.push('/accounttype')}>
+        {/* sign up button */}
+        <TouchableOpacity onPress={handleSignUp} disabled={loading}>
           <LinearGradient
             colors={['#C850C0', '#8B2FC9']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.button}
           >
-            <Text style={styles.buttonText}>Sign Up</Text>
+            <Text style={styles.buttonText}>{loading ? 'Signing up...' : 'Sign Up'}</Text>
           </LinearGradient>
         </TouchableOpacity>
 
