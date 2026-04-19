@@ -24,6 +24,7 @@ export default function ProfileScreen() {
     workspace: '—',
     memberSince: '—',
     initials: '👤',
+  });
 
     useEffect(() => {
       fetchUser();
