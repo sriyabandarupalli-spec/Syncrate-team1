@@ -1,30 +1,12 @@
 // Inventory List Screen — shows all items in the current workspace
+// empty until items are added via the add item screen or QR scan
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import {
-  FlatList,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-const MOCK_ITEMS = [
-  { id: '1', name: 'Blue Widget A', sku: 'BWA-001', qty: 142, status: 'In Stock' },
-  { id: '2', name: 'Red Widget B', sku: 'RWB-002', qty: 8, status: 'Low Stock' },
-  { id: '3', name: 'Green Gear C', sku: 'GGC-003', qty: 0, status: 'Out of Stock' },
-  { id: '4', name: 'Yellow Box D', sku: 'YBD-004', qty: 55, status: 'In Stock' },
-  { id: '5', name: 'Silver Part E', sku: 'SPE-005', qty: 3, status: 'Low Stock' },
-  { id: '6', name: 'Black Case F', sku: 'BCF-006', qty: 210, status: 'In Stock' },
-];
-
-const STATUS_COLORS: Record<string, string> = {
-  'In Stock': '#4ade80',
-  'Low Stock': '#facc15',
-  'Out of Stock': '#f87171',
-};
+// this will be replaced with real Supabase data later
+const items: any[] = [];
 
 export default function InventoryListScreen() {
   const router = useRouter();
@@ -39,9 +21,9 @@ export default function InventoryListScreen() {
         style={styles.background}
       />
 
-      {/* header */}
+      {/* header — back arrow goes to workspaces */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.push('/workspaces')}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Inventory</Text>
@@ -67,43 +49,51 @@ export default function InventoryListScreen() {
         />
       </View>
 
-      {/* summary pills */}
-      <View style={styles.pillRow}>
-        {[
-          { label: 'All', count: 6 },
-          { label: 'In Stock', count: 3 },
-          { label: 'Low Stock', count: 2 },
-          { label: 'Out of Stock', count: 1 },
-        ].map((p) => (
-          <TouchableOpacity key={p.label} style={styles.pill}>
-            <Text style={styles.pillText}>{p.label} ({p.count})</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* item list */}
-      <FlatList
-        data={MOCK_ITEMS}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.itemCard}
-            onPress={() => router.push('/scanresult')}
-          >
-            <View style={styles.itemLeft}>
-              <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemSku}>{item.sku}</Text>
-            </View>
-            <View style={styles.itemRight}>
-              <Text style={styles.itemQty}>{item.qty}</Text>
-              <Text style={[styles.itemStatus, { color: STATUS_COLORS[item.status] }]}>
-                {item.status}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
-      />
+      {/* empty state or list */}
+      {items.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyEmoji}>📦</Text>
+          <Text style={styles.emptyTitle}>No items yet</Text>
+          <Text style={styles.emptySubtext}>Add items manually or scan a QR code to get started</Text>
+          <View style={styles.emptyButtons}>
+            {/* add item button */}
+            <TouchableOpacity onPress={() => router.push('/additem')}>
+              <LinearGradient
+                colors={['#C850C0', '#8B2FC9']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.button}
+              >
+                <Text style={styles.buttonText}>+ Add Item</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            {/* scan button */}
+            <TouchableOpacity style={styles.outlineButton} onPress={() => router.push('/scanner')}>
+              <Text style={styles.outlineButtonText}>📷 Scan QR Code</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.itemCard}
+              onPress={() => router.push('/scanresult')}
+            >
+              <View style={styles.itemLeft}>
+                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.itemSku}>{item.sku}</Text>
+              </View>
+              <View style={styles.itemRight}>
+                <Text style={styles.itemQty}>{item.qty}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        />
+      )}
     </View>
   );
 }
@@ -157,24 +147,52 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ffffff20',
   },
-  pillRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 8,
-    marginBottom: 16,
-    flexWrap: 'wrap',
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
   },
-  pill: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    backgroundColor: '#ffffff10',
+  emptyEmoji: {
+    fontSize: 60,
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  emptySubtext: {
+    color: '#aaa',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  emptyButtons: {
+    width: '100%',
+    gap: 12,
+  },
+  button: {
+    padding: 16,
+    borderRadius: 30,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  outlineButton: {
+    padding: 16,
+    borderRadius: 30,
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ffffff20',
+    borderColor: '#ffffff30',
   },
-  pillText: {
-    color: '#ccc',
-    fontSize: 12,
+  outlineButtonText: {
+    color: 'white',
+    fontSize: 15,
   },
   list: {
     paddingHorizontal: 20,
@@ -211,10 +229,5 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  itemStatus: {
-    fontSize: 11,
-    fontWeight: '600',
   },
 });

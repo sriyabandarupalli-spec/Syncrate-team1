@@ -69,7 +69,7 @@ export default function JoinWorkspaceScreen() {
         </View>
 
         {/* scan QR instead */}
-        <TouchableOpacity style={styles.qrButton}>
+        <TouchableOpacity style={styles.qrButton} onPress={() => router.push('/scanner')}>
           <Text style={styles.qrButtonText}>📷  Scan QR Code Instead</Text>
         </TouchableOpacity>
       </ScrollView>

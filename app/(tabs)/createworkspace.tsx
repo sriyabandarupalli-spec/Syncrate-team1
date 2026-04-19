@@ -2,10 +2,25 @@
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function CreateWorkspaceScreen() {
   const router = useRouter();
+
+  // track which industry and team size the user selected
+  const [selectedIndustry, setSelectedIndustry] = useState<string | null>(null);
+  const [selectedTeamSize, setSelectedTeamSize] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // simulate button press feedback before navigating
+  const handleCreate = () => {
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      router.push('/workspaces');
+    }, 800);
+  };
 
   return (
     <View style={styles.container}>
@@ -51,35 +66,59 @@ export default function CreateWorkspaceScreen() {
             placeholderTextColor="#666"
           />
 
-          {/* industry */}
+          {/* description */}
+          <Text style={styles.label}>Description (optional)</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="What is this workspace for?"
+            placeholderTextColor="#666"
+            multiline
+            numberOfLines={3}
+          />
+
+          {/* industry pills — highlights when selected */}
           <Text style={styles.label}>Industry</Text>
           <View style={styles.pillRow}>
             {['Retail', 'E-commerce', 'Logistics', 'Manufacturing', 'Other'].map((item) => (
-              <TouchableOpacity key={item} style={styles.pill}>
-                <Text style={styles.pillText}>{item}</Text>
+              <TouchableOpacity
+                key={item}
+                style={[styles.pill, selectedIndustry === item && styles.pillSelected]}
+                onPress={() => setSelectedIndustry(item)}
+              >
+                <Text style={[styles.pillText, selectedIndustry === item && styles.pillTextSelected]}>
+                  {item}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          {/* team size */}
+          {/* team size pills — highlights when selected */}
           <Text style={styles.label}>Team Size</Text>
           <View style={styles.pillRow}>
-            {['1–5', '6–20', '21–50', '50+'].map((item) => (
-              <TouchableOpacity key={item} style={styles.pill}>
-                <Text style={styles.pillText}>{item}</Text>
+            {['1–5', '6–20', '21–50', '51–100', '100+'].map((item) => (
+              <TouchableOpacity
+                key={item}
+                style={[styles.pill, selectedTeamSize === item && styles.pillSelected]}
+                onPress={() => setSelectedTeamSize(item)}
+              >
+                <Text style={[styles.pillText, selectedTeamSize === item && styles.pillTextSelected]}>
+                  {item}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          {/* create button → goes to workspaces */}
-          <TouchableOpacity onPress={() => router.push('/workspaces')}>
+          {/* create button — shows loading state when pressed */}
+          <TouchableOpacity onPress={handleCreate} disabled={loading}>
             <LinearGradient
-              colors={['#C850C0', '#8B2FC9']}
+              colors={loading ? ['#888', '#666'] : ['#C850C0', '#8B2FC9']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.button}
             >
-              <Text style={styles.buttonText}>Create Workspace</Text>
+              <Text style={styles.buttonText}>
+                {loading ? 'Creating...' : 'Create Workspace'}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -166,6 +205,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ffffff20',
   },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
   pillRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -179,9 +222,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ffffff20',
   },
+  pillSelected: {
+    backgroundColor: '#8B2FC9',
+    borderColor: '#C850C0',
+  },
   pillText: {
-    color: 'white',
+    color: '#aaa',
     fontSize: 13,
+  },
+  pillTextSelected: {
+    color: 'white',
+    fontWeight: 'bold',
   },
   button: {
     padding: 16,

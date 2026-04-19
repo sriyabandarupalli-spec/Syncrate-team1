@@ -1,4 +1,5 @@
 // Scan Result Screen — shows item details after a QR code is scanned
+// item data will come from Supabase lookup using the scanned SKU
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -7,15 +8,16 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 export default function ScanResultScreen() {
   const router = useRouter();
 
-  // In production this would come from route params / QR scan data
+  // this will be replaced with real data from Supabase once backend is connected
+  // for now showing placeholder so the screen layout is visible
   const item = {
-    name: 'Blue Widget A',
-    sku: 'BWA-001',
-    qty: 142,
-    location: 'Aisle 3, Shelf B',
-    category: 'Widgets',
-    lastUpdated: 'Apr 14, 2026',
-    status: 'In Stock',
+    name: 'Item Name',
+    sku: 'SKU-000',
+    qty: 0,
+    location: '—',
+    category: '—',
+    lastUpdated: '—',
+    status: 'Unknown',
   };
 
   return (
@@ -34,6 +36,14 @@ export default function ScanResultScreen() {
       </TouchableOpacity>
 
       <ScrollView contentContainerStyle={styles.scroll}>
+        {/* success indicator */}
+        <View style={styles.successRow}>
+          <View style={styles.successCircle}>
+            <Text style={styles.successIcon}>✓</Text>
+          </View>
+          <Text style={styles.successText}>Scan Successful</Text>
+        </View>
+
         {/* item name + status badge */}
         <View style={styles.topRow}>
           <View style={styles.iconCircle}>
@@ -48,21 +58,23 @@ export default function ScanResultScreen() {
           </View>
         </View>
 
-        {/* quantity card */}
+        {/* quantity card with + and - buttons */}
         <View style={styles.qtyCard}>
           <Text style={styles.qtyLabel}>Current Quantity</Text>
           <Text style={styles.qtyValue}>{item.qty}</Text>
           <View style={styles.qtyActions}>
+            {/* decrease quantity */}
             <TouchableOpacity style={styles.qtyBtn}>
               <Text style={styles.qtyBtnText}>−</Text>
             </TouchableOpacity>
+            {/* increase quantity */}
             <TouchableOpacity style={styles.qtyBtn}>
               <Text style={styles.qtyBtnText}>+</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* detail rows */}
+        {/* item detail rows */}
         <View style={styles.card}>
           {[
             { label: 'Location', value: item.location },
@@ -76,7 +88,7 @@ export default function ScanResultScreen() {
           ))}
         </View>
 
-        {/* actions */}
+        {/* edit item → goes to add/edit item screen */}
         <TouchableOpacity onPress={() => router.push('/additem')}>
           <LinearGradient
             colors={['#C850C0', '#8B2FC9']}
@@ -88,10 +100,12 @@ export default function ScanResultScreen() {
           </LinearGradient>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryButton}>
-          <Text style={styles.secondaryButtonText}>View History</Text>
+        {/* scan again → goes back to scanner */}
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/scanner')}>
+          <Text style={styles.secondaryButtonText}>📷 Scan Again</Text>
         </TouchableOpacity>
 
+        {/* remove item — will hook up to Supabase delete later */}
         <TouchableOpacity style={styles.dangerButton}>
           <Text style={styles.dangerButtonText}>Remove Item</Text>
         </TouchableOpacity>
@@ -123,6 +137,31 @@ const styles = StyleSheet.create({
     paddingTop: 110,
     paddingHorizontal: 24,
     paddingBottom: 60,
+  },
+  successRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    gap: 10,
+  },
+  successCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#C850C0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successIcon: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  successText: {
+    color: '#C850C0',
+    fontSize: 16,
+    fontWeight: '600',
   },
   topRow: {
     flexDirection: 'row',
@@ -157,15 +196,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statusBadge: {
-    backgroundColor: '#4ade8020',
+    backgroundColor: '#ffffff15',
     borderRadius: 12,
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#4ade8040',
+    borderColor: '#ffffff20',
   },
   statusText: {
-    color: '#4ade80',
+    color: '#aaa',
     fontSize: 11,
     fontWeight: '600',
   },

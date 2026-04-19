@@ -8,12 +8,12 @@ export default function ProfileScreen() {
   const router = useRouter();
 
   const user = {
-    name: 'Alex Johnson',
-    email: 'alex@syncrate.app',
-    role: 'Warehouse Admin',
-    workspace: 'Main Warehouse',
-    memberSince: 'January 2025',
-    initials: 'AJ',
+    name: 'Display Name',
+    email: 'email@example.com',
+    role: 'Warehouse Owner',
+    workspace: '—',
+    memberSince: '—',
+    initials: '👤',
   };
 
   return (

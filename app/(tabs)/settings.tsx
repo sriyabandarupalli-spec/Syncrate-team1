@@ -2,8 +2,8 @@
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useState } from 'react';
+import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -114,7 +114,7 @@ export default function SettingsScreen() {
         <Section title="Workspace" />
         <View style={styles.card}>
           <LinkRow label="Manage Members" onPress={() => {}} />
-          <LinkRow label="Invite Code" onPress={() => {}} />
+          <LinkRow label="📋  Copy Invite Code" onPress={() => {}} />
           <LinkRow label="Workspace Settings" onPress={() => {}} />
         </View>
 

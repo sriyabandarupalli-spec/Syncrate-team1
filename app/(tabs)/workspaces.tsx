@@ -21,9 +21,11 @@ export default function WorkspacesScreen() {
         style={styles.background}
       />
 
-      {/* top bar */}
+      {/* top bar — menu opens sidebar, + creates new workspace */}
       <View style={styles.topBar}>
-        <Text style={styles.menuIcon}>☰</Text>
+        <TouchableOpacity onPress={() => router.push('/sidebar')}>
+          <Text style={styles.menuIcon}>☰</Text>
+        </TouchableOpacity>
         <Text style={styles.title}>My Work Spaces</Text>
         <TouchableOpacity onPress={() => router.push('/createworkspace')}>
           <Text style={styles.addIcon}>＋</Text>

@@ -2,10 +2,21 @@
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function AddItemScreen() {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  // simulate save with loading state — will hook up to Supabase later
+  const handleSave = () => {
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      router.push('/inventory');
+    }, 800);
+  };
 
   return (
     <View style={styles.container}>
@@ -34,7 +45,7 @@ export default function AddItemScreen() {
             placeholderTextColor="#666"
           />
 
-          {/* SKU */}
+          {/* SKU — camera button opens scanner */}
           <Text style={styles.label}>SKU / Barcode *</Text>
           <View style={styles.skuRow}>
             <TextInput
@@ -43,7 +54,8 @@ export default function AddItemScreen() {
               placeholderTextColor="#666"
               autoCapitalize="characters"
             />
-            <TouchableOpacity style={styles.scanBtn}>
+            {/* tap to scan instead of typing */}
+            <TouchableOpacity style={styles.scanBtn} onPress={() => router.push('/scanner')}>
               <Text style={styles.scanBtnText}>📷</Text>
             </TouchableOpacity>
           </View>
@@ -93,15 +105,17 @@ export default function AddItemScreen() {
           />
         </View>
 
-        {/* save button */}
-        <TouchableOpacity onPress={() => router.push('/inventory')}>
+        {/* save button with loading state */}
+        <TouchableOpacity onPress={handleSave} disabled={loading}>
           <LinearGradient
-            colors={['#C850C0', '#8B2FC9']}
+            colors={loading ? ['#888', '#666'] : ['#C850C0', '#8B2FC9']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.button}
           >
-            <Text style={styles.buttonText}>Save Item</Text>
+            <Text style={styles.buttonText}>
+              {loading ? 'Saving...' : 'Save Item'}
+            </Text>
           </LinearGradient>
         </TouchableOpacity>
 
