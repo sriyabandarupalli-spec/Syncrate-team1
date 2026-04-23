@@ -1,71 +1,109 @@
-// Login Screen — existing users enter their email and password to log in
-
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { supabase } from '../../lib/supabase';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  
+  // Start loading as false so the button is visible by default
+  const [loading, setLoading] = useState(false);
+
+  // 1. AUTO-REDIRECT logic
+  useEffect(() => {
+    const checkUser = async () => {
+      // Optional: setLoading(true) if you want to hide the form during check
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        router.replace('/workspaces');
+      }
+      setLoading(false); 
+    };
+    checkUser();
+  }, []);
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    setLoading(true);
+    
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: password,
+    });
+
+    if (error) {
+      Alert.alert('Login Failed', error.message);
+      setLoading(false); // Stop spinning if login fails
+    } else {
+      router.replace('/workspaces');
+    }
+  };
 
   return (
     <View style={styles.container}>
-      {/* background gradient — same as splash */}
       <LinearGradient
         colors={['#3D0040', '#1a0035', '#0A0010']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         style={styles.background}
       />
 
-      {/* back arrow */}
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+      <TouchableOpacity style={styles.backButton} onPress={() => router.push('/')}>
         <Text style={styles.backText}>←</Text>
       </TouchableOpacity>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* form card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.title}>Log In</Text>
-            {/* forgot password link → goes to forgot password screen */}
             <TouchableOpacity onPress={() => router.push('/forgotpassword')}>
               <Text style={styles.forgotText}>Forgot Password?</Text>
             </TouchableOpacity>
           </View>
 
-          {/* email input */}
           <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.input}
             placeholder="Enter your email"
             placeholderTextColor="#666"
             keyboardType="email-address"
+            autoCapitalize="none"
+            value={email}
+            onChangeText={setEmail}
           />
 
-          {/* password input */}
           <Text style={styles.label}>Password</Text>
           <TextInput
             style={styles.input}
             placeholder="Enter your password"
             placeholderTextColor="#666"
             secureTextEntry
+            value={password}
+            onChangeText={setPassword}
           />
 
-          {/* log in button → goes to workspaces screen */}
-          <TouchableOpacity onPress={() => router.push('/workspaces')}>
+          <TouchableOpacity onPress={handleLogin} disabled={loading}>
             <LinearGradient
-              colors={['#C850C0', '#8B2FC9']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+              colors={loading ? ['#444', '#333'] : ['#C850C0', '#8B2FC9']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={styles.button}
             >
-              <Text style={styles.buttonText}>Log In</Text>
+              {loading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={styles.buttonText}>Log In</Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
 
           <Text style={styles.or}>or</Text>
 
-          {/* google button */}
           <TouchableOpacity style={styles.googleButton}>
             <Text style={styles.googleText}>🔵 Continue with Google</Text>
           </TouchableOpacity>
@@ -76,94 +114,20 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0010',
-  },
-  background: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-  },
-  backButton: {
-    position: 'absolute',
-    top: 60,
-    left: 20,
-    zIndex: 10,
-  },
-  backText: {
-    color: 'white',
-    fontSize: 24,
-  },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 30,
-    paddingTop: 100,
-    paddingBottom: 40,
-  },
-  card: {
-    backgroundColor: '#ffffff10',
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#ffffff20',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  forgotText: {
-    color: '#C850C0',
-    fontSize: 13,
-  },
-  label: {
-    color: '#aaa',
-    fontSize: 13,
-    marginBottom: 6,
-    marginTop: 12,
-  },
-  input: {
-    backgroundColor: '#ffffff10',
-    borderRadius: 10,
-    padding: 14,
-    color: 'white',
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: '#ffffff20',
-  },
-  button: {
-    padding: 16,
-    borderRadius: 30,
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  or: {
-    color: '#ffffff50',
-    textAlign: 'center',
-    marginVertical: 12,
-  },
-  googleButton: {
-    padding: 16,
-    borderRadius: 30,
-    alignItems: 'center',
-    backgroundColor: '#ffffff10',
-    borderWidth: 1,
-    borderColor: '#ffffff20',
-  },
-  googleText: {
-    color: 'white',
-    fontSize: 15,
-  },
+  container: { flex: 1, backgroundColor: '#0A0010' },
+  background: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  backButton: { position: 'absolute', top: 60, left: 20, zIndex: 10 },
+  backText: { color: 'white', fontSize: 24 },
+  scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 30, paddingTop: 100, paddingBottom: 40 },
+  card: { backgroundColor: '#ffffff10', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: '#ffffff20' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  title: { color: 'white', fontSize: 24, fontWeight: 'bold' },
+  forgotText: { color: '#C850C0', fontSize: 13 },
+  label: { color: '#aaa', fontSize: 13, marginBottom: 6, marginTop: 12 },
+  input: { backgroundColor: '#ffffff10', borderRadius: 10, padding: 14, color: 'white', fontSize: 15, borderWidth: 1, borderColor: '#ffffff20' },
+  button: { padding: 16, borderRadius: 30, alignItems: 'center', marginTop: 24 },
+  buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+  or: { color: '#ffffff50', textAlign: 'center', marginVertical: 12 },
+  googleButton: { padding: 16, borderRadius: 30, alignItems: 'center', backgroundColor: '#ffffff10', borderWidth: 1, borderColor: '#ffffff20' },
+  googleText: { color: 'white', fontSize: 15 },
 });
