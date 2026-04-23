@@ -2,7 +2,7 @@
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react'; // Added useEffect import
 import {
   Alert,
   ScrollView,
@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -26,69 +26,70 @@ export default function ProfileScreen() {
     initials: '👤',
   });
 
-    useEffect(() => {
-      fetchUser();
-    }, []);
-    
-    async function fetchUser() {
-      try {
-        setLoading(true);
-    
-        const { data, error } = await supabase.auth.getUser();
-    
-        if (error) {
-          Alert.alert('Error', error.message);
-          return;
-        }
-    
-        const authUser = data.user;
-    
-        if (!authUser) {
-          router.replace('/login');
-          return;
-        }
-    
-        const displayName =
-          authUser.user_metadata?.display_name ||
-          authUser.email?.split('@')[0] ||
-          'User';
-    
-        const email = authUser.email || '—';
-    
-        const memberSince = authUser.created_at
-          ? new Date(authUser.created_at).toLocaleDateString()
-          : '—';
-    
-        const initials =
-          displayName.length > 0 ? displayName[0].toUpperCase() : '👤';
-    
-        setUser({
-          name: displayName,
-          email,
-          role: authUser.user_metadata?.role || 'User',
-          workspace: authUser.user_metadata?.workspace || '—',
-          memberSince,
-          initials,
-        });
-      } catch (err) {
-        console.error(err);
-        Alert.alert('Error', 'Failed to load profile.');
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    async function handleSignOut() {
-      const { error } = await supabase.auth.signOut();
-    
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
+  async function fetchUser() {
+    try {
+      setLoading(true);
+
+      const { data, error } = await supabase.auth.getUser();
+
       if (error) {
-        Alert.alert('Sign out failed', error.message);
+        Alert.alert('Error', error.message);
         return;
       }
-    
-      router.replace('/login');
+
+      const authUser = data.user;
+
+      if (!authUser) {
+        router.replace('/login');
+        return;
+      }
+
+      const displayName =
+        authUser.user_metadata?.display_name ||
+        authUser.email?.split('@')[0] ||
+        'User';
+
+      const email = authUser.email || '—';
+
+      const memberSince = authUser.created_at
+        ? new Date(authUser.created_at).toLocaleDateString()
+        : '—';
+
+      const initials =
+        displayName.length > 0 ? displayName[0].toUpperCase() : '👤';
+
+      setUser({
+        name: displayName,
+        email,
+        role: authUser.user_metadata?.role || 'User',
+        workspace: authUser.user_metadata?.workspace || '—',
+        memberSince,
+        initials,
+      });
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Failed to load profile.');
+    } finally {
+      setLoading(false);
     }
-  });
+  }
+
+  async function handleSignOut() {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      Alert.alert('Sign out failed', error.message);
+      return;
+    }
+
+    router.replace('/login');
+  }
+
+  // The stray "});" that was here has been removed.
 
   return (
     <View style={styles.container}>
@@ -159,7 +160,7 @@ export default function ProfileScreen() {
         {/* sign out */}
         <TouchableOpacity
           style={styles.signOutButton}
-          onPress={() => router.replace('/login')}
+          onPress={handleSignOut} // Updated to call the actual function
         >
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
