@@ -3,14 +3,77 @@
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import {
+  Alert,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { supabase } from '../../lib/supabase';
 
 export default function AccountTypeScreen() {
   const router = useRouter();
+  const [loadingRole, setLoadingRole] = useState<string | null>(null);
+
+  async function handleChooseRole(
+    role: 'warehouse_owner' | 'merchant_seller',
+    nextRoute: '/workspaces' | '/joinworkspace'
+  ) {
+    try {
+      setLoadingRole(role);
+
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+
+      if (userError) {
+        Alert.alert('Error', userError.message);
+        return;
+      }
+
+      const authUser = userData.user;
+
+      if (!authUser) {
+        Alert.alert('Not logged in', 'Please log in before choosing an account type.');
+        router.replace('/login');
+        return;
+      }
+
+      const displayName =
+        authUser.user_metadata?.display_name ||
+        authUser.user_metadata?.name ||
+        authUser.email?.split('@')[0] ||
+        'User';
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert(
+          {
+            user_id: authUser.id,
+            display_name: displayName,
+            role,
+          },
+          {
+            onConflict: 'user_id',
+          }
+        );
+
+      if (profileError) {
+        Alert.alert('Error', profileError.message);
+        return;
+      }
+
+      router.push(nextRoute);
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Failed to save account type.');
+    } finally {
+      setLoadingRole(null);
+    }
+  }
 
   return (
     <View style={styles.container}>
-      {/* background gradient */}
       <LinearGradient
         colors={['#3D0040', '#1a0035', '#0A0010']}
         start={{ x: 0, y: 0 }}
@@ -18,32 +81,46 @@ export default function AccountTypeScreen() {
         style={styles.background}
       />
 
-      {/* back arrow */}
       <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
         <Text style={styles.backText}>←</Text>
       </TouchableOpacity>
 
-      {/* title and subtitle */}
       <View style={styles.headerSection}>
         <Text style={styles.title}>Choose Account Type</Text>
-        <Text style={styles.subtitle}>Select the option that best describes your business</Text>
+        <Text style={styles.subtitle}>
+          Select the option that best describes your business
+        </Text>
       </View>
 
-      {/* warehouse owner button → goes to workspaces */}
-      <TouchableOpacity style={styles.optionButton} onPress={() => router.push('/workspaces')}>
+      <TouchableOpacity
+        style={styles.optionButton}
+        disabled={loadingRole !== null}
+        onPress={() => handleChooseRole('warehouse_owner', '/workspaces')}
+      >
         <View style={styles.optionIcon}>
           <Text style={styles.optionEmoji}>🏭</Text>
         </View>
-        <Text style={styles.optionText}>Sign Up as Warehouse Owner</Text>
+        <Text style={styles.optionText}>
+          {loadingRole === 'warehouse_owner'
+            ? 'Saving...'
+            : 'Sign Up as Warehouse Owner'}
+        </Text>
         <Text style={styles.arrow}>›</Text>
       </TouchableOpacity>
 
-      {/* merchant seller button → goes to join workspace */}
-      <TouchableOpacity style={styles.optionButton} onPress={() => router.push('/joinworkspace')}>
+      <TouchableOpacity
+        style={styles.optionButton}
+        disabled={loadingRole !== null}
+        onPress={() => handleChooseRole('merchant_seller', '/joinworkspace')}
+      >
         <View style={styles.optionIcon}>
           <Text style={styles.optionEmoji}>🛍️</Text>
         </View>
-        <Text style={styles.optionText}>Sign Up as Merchant Seller</Text>
+        <Text style={styles.optionText}>
+          {loadingRole === 'merchant_seller'
+            ? 'Saving...'
+            : 'Sign Up as Merchant Seller'}
+        </Text>
         <Text style={styles.arrow}>›</Text>
       </TouchableOpacity>
     </View>
@@ -59,7 +136,10 @@ const styles = StyleSheet.create({
   },
   background: {
     position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   backButton: {
     position: 'absolute',

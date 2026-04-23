@@ -1,15 +1,18 @@
 // Profile Screen — shows user info and account details
 
+// Profile Screen — shows user info and account details
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react'; // Added useEffect import
+import { useEffect, useState } from 'react';
 import {
   Alert,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
@@ -17,6 +20,12 @@ export default function ProfileScreen() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+
   const [user, setUser] = useState({
     name: '',
     email: '',
@@ -78,6 +87,56 @@ export default function ProfileScreen() {
     }
   }
 
+  function handleEditProfile() {
+    setEditName(user.name);
+    setEditEmail(user.email);
+    setIsEditing(true);
+  }
+
+  async function handleSaveProfile() {
+    const trimmedName = editName.trim();
+    const trimmedEmail = editEmail.trim();
+
+    if (!trimmedName) {
+      Alert.alert('Missing name', 'Please enter a display name.');
+      return;
+    }
+
+    if (!trimmedEmail) {
+      Alert.alert('Missing email', 'Please enter an email.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const { error } = await supabase.auth.updateUser({
+        email: trimmedEmail,
+        data: {
+          display_name: trimmedName,
+        },
+      });
+
+      if (error) {
+        Alert.alert('Update failed', error.message);
+        return;
+      }
+
+      await fetchUser();
+      setIsEditing(false);
+
+      Alert.alert(
+        'Profile updated',
+        'Your profile was updated. If you changed your email, you may need to confirm it before the new email appears.'
+      );
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Failed to update profile.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleSignOut() {
     const { error } = await supabase.auth.signOut();
 
@@ -88,8 +147,6 @@ export default function ProfileScreen() {
 
     router.replace('/login');
   }
-
-  // The stray "});" that was here has been removed.
 
   return (
     <View style={styles.container}>
@@ -106,7 +163,9 @@ export default function ProfileScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Profile</Text>
+
         <TouchableOpacity onPress={() => router.push('/settings')}>
           <Text style={styles.settingsIcon}>⚙️</Text>
         </TouchableOpacity>
@@ -121,12 +180,62 @@ export default function ProfileScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.avatar}
           >
-            <Text style={styles.avatarText}>{user.initials}</Text>
+            <Text style={styles.avatarText}>
+              {loading ? '...' : user.initials}
+            </Text>
           </LinearGradient>
-          <Text style={styles.userName}>{user.name}</Text>
+
+          <Text style={styles.userName}>
+            {loading ? 'Loading...' : user.name}
+          </Text>
+
           <View style={styles.roleBadge}>
             <Text style={styles.roleText}>{user.role}</Text>
           </View>
+
+          {isEditing && (
+            <View style={styles.editCard}>
+              <Text style={styles.inputLabel}>Display Name</Text>
+              <TextInput
+                style={styles.input}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Enter display name"
+                placeholderTextColor="#777"
+              />
+
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput
+                style={styles.input}
+                value={editEmail}
+                onChangeText={setEditEmail}
+                placeholder="Enter email"
+                placeholderTextColor="#777"
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+
+              <View style={styles.editButtons}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => setIsEditing(false)}
+                  disabled={saving}
+                >
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleSaveProfile}
+                  disabled={saving}
+                >
+                  <Text style={styles.saveText}>
+                    {saving ? 'Saving...' : 'Save'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* info card */}
@@ -138,7 +247,7 @@ export default function ProfileScreen() {
           ].map((row) => (
             <View key={row.label} style={styles.row}>
               <Text style={styles.rowLabel}>{row.label}</Text>
-              <Text style={styles.rowValue}>{row.value}</Text>
+              <Text style={styles.rowValue}>{loading ? 'Loading...' : row.value}</Text>
             </View>
           ))}
         </View>
@@ -146,11 +255,18 @@ export default function ProfileScreen() {
         {/* action buttons */}
         <View style={styles.card}>
           {[
-            { label: '✏️  Edit Profile', onPress: () => {} },
-            { label: '🔑  Change Password', onPress: () => router.push('/forgotpassword') },
+            { label: '✏️  Edit Profile', onPress: handleEditProfile },
+            {
+              label: '🔑  Change Password',
+              onPress: () => router.push('/forgotpassword'),
+            },
             { label: '🔔  Notifications', onPress: () => {} },
           ].map((item) => (
-            <TouchableOpacity key={item.label} style={styles.actionRow} onPress={item.onPress}>
+            <TouchableOpacity
+              key={item.label}
+              style={styles.actionRow}
+              onPress={item.onPress}
+            >
               <Text style={styles.actionText}>{item.label}</Text>
               <Text style={styles.chevron}>›</Text>
             </TouchableOpacity>
@@ -158,10 +274,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* sign out */}
-        <TouchableOpacity
-          style={styles.signOutButton}
-          onPress={handleSignOut} // Updated to call the actual function
-        >
+        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -176,7 +289,10 @@ const styles = StyleSheet.create({
   },
   background: {
     position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   header: {
     flexDirection: 'row',
@@ -260,6 +376,8 @@ const styles = StyleSheet.create({
   rowValue: {
     color: 'white',
     fontSize: 14,
+    maxWidth: '60%',
+    textAlign: 'right',
   },
   actionRow: {
     flexDirection: 'row',
@@ -290,5 +408,64 @@ const styles = StyleSheet.create({
     color: '#f87171',
     fontSize: 15,
     fontWeight: '600',
+  },
+  editCard: {
+    width: '100%',
+    backgroundColor: '#ffffff10',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ffffff20',
+    padding: 16,
+    marginTop: 20,
+  },
+  inputLabel: {
+    color: '#aaa',
+    fontSize: 13,
+    marginBottom: 6,
+    marginTop: 8,
+  },
+  input: {
+    color: 'white',
+    backgroundColor: '#00000030',
+    borderWidth: 1,
+    borderColor: '#ffffff20',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+  },
+  editButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 24,
+    alignItems: 'center',
+    backgroundColor: '#ffffff10',
+    borderWidth: 1,
+    borderColor: '#ffffff20',
+  },
+  cancelText: {
+    color: '#ddd',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  saveButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 24,
+    alignItems: 'center',
+    backgroundColor: '#C850C030',
+    borderWidth: 1,
+    borderColor: '#C850C060',
+  },
+  saveText: {
+    color: '#C850C0',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
