@@ -1,27 +1,77 @@
-// Imports
+// Scanner Screen — scans a QR code then looks up the item in Supabase
+
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { supabase } from '../../lib/supabase';
 
-
-// Memory for screen: creating a screen called ScannerScreen then asking for permission to scan, has somethign been scanned yet?, default to False
 export default function ScannerScreen() {
+  const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
-  const [scannedData, setScannedData] = useState<string | null>(null);
+  const [looking, setLooking] = useState(false); // true while we're querying Supabase
+  const [errorMsg, setErrorMsg] = useState('');
 
+  // useRef prevents the scan handler from firing multiple times
+  // the camera fires onBarcodeScanned many times per second when it sees a code
+  // without this lock you'd make dozens of Supabase requests in one second
+  const isProcessing = useRef(false);
 
-  // if permission has not been granted yet: load blank screen, show button to grant permission
-   if (!permission) { // if permission hasn't loaded yet show a blank screen
+  const handleBarcodeScan = async ({ data }: { data: string }) => {
+    // if we're already processing a scan, ignore this duplicate fire
+    if (isProcessing.current) return;
+    isProcessing.current = true;
+    setScanned(true);
+    setLooking(true);
+    setErrorMsg('');
+
+    // look up the scanned SKU in the items table
+    // .single() returns one item or an error — never an array
+    const { data: item, error } = await supabase
+      .from('items')
+      .select('*')
+      .eq('sku', data.toUpperCase())
+      .single();
+
+    setLooking(false);
+
+    if (error || !item) {
+      // item not found — show error and let them scan again
+      setErrorMsg(`No item found for SKU: ${data}`);
+      isProcessing.current = false;
+      setScanned(false);
+      return;
+    }
+
+    // item found — navigate to scan result and pass the item ID
+    // we pass the ID and let scanresult.tsx fetch the full details
+    // this way scanresult always shows the freshest data from the DB
+    router.push({ pathname: '/scanresult', params: { itemId: item.id } });
+
+    // reset after a short delay so the scanner is ready if they come back
+    setTimeout(() => {
+      isProcessing.current = false;
+      setScanned(false);
+    }, 1000);
+  };
+
+  const handleScanAgain = () => {
+    setScanned(false);
+    setErrorMsg('');
+    isProcessing.current = false;
+  };
+
+  if (!permission) {
     return <View />;
   }
 
-  if (!permission.granted) { // if user hasn't given camera access yet show this message, creating a button when pressed gives access
+  if (!permission.granted) {
     return (
       <View style={styles.permissionContainer}>
         <Text style={styles.message}>We need camera access to scan QR codes</Text>
-        <TouchableOpacity onPress={requestPermission}> 
+        <TouchableOpacity onPress={requestPermission}>
           <LinearGradient
             colors={['#C850C0', '#8B2FC9']}
             start={{ x: 0, y: 0 }}
@@ -35,25 +85,43 @@ export default function ScannerScreen() {
     );
   }
 
-  //open the camera pointing backwards, watch for QR code, stop scanning so it doesn't infinite loop, show what was scanned, show a scan again button
   return (
     <View style={styles.container}>
-      {!scanned && ( // only show camera if nothing has been scanned yet
-        <CameraView // renders the camera feed on screen
-          style={styles.camera} // makes the camera fill the screen
+      {/* show camera only when not currently processing a scan */}
+      {!scanned && (
+        <CameraView
+          style={styles.camera}
           facing="back"
-          onBarcodeScanned={({ data }) => { // waits & looks for a QR code then runs when it sees one
-            setScanned(true);
-            setScannedData(data);
-          }}
+          onBarcodeScanned={handleBarcodeScan}
         />
       )}
-      {scanned && scannedData && ( // show only if scanned is true, white card appears after something has been scanned
+
+      {/* overlay UI on top of camera — scan frame + label */}
+      {!scanned && (
+        <View style={styles.overlay}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backText}>←</Text>
+          </TouchableOpacity>
+          <View style={styles.scanFrame} />
+          <Text style={styles.scanHint}>Point at a QR code to scan</Text>
+        </View>
+      )}
+
+      {/* loading state while Supabase query runs */}
+      {looking && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#C850C0" />
+          <Text style={styles.loadingText}>Looking up item...</Text>
+        </View>
+      )}
+
+      {/* error state — item not found in DB */}
+      {errorMsg ? (
         <View style={styles.resultContainer}>
           <View style={styles.resultCard}>
-            <Text style={styles.resultTitle}>Item Scanned!</Text>
-            <Text style={styles.resultData}>{scannedData}</Text>
-            <TouchableOpacity onPress={() => { setScanned(false); setScannedData(null); }}> 
+            <Text style={styles.errorTitle}>Item Not Found</Text>
+            <Text style={styles.errorMsg}>{errorMsg}</Text>
+            <TouchableOpacity onPress={handleScanAgain}>
               <LinearGradient
                 colors={['#C850C0', '#8B2FC9']}
                 start={{ x: 0, y: 0 }}
@@ -65,16 +133,13 @@ export default function ScannerScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0010',
-  },
+  container: { flex: 1, backgroundColor: '#0A0010' },
   permissionContainer: {
     flex: 1,
     backgroundColor: '#0A0010',
@@ -82,15 +147,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  camera: {
-    flex: 1,
+  camera: { flex: 1 },
+  overlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  message: {
+  backButton: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+  },
+  backText: { color: 'white', fontSize: 24 },
+  scanFrame: {
+    width: 240,
+    height: 240,
+    borderWidth: 2,
+    borderColor: '#C850C0',
+    borderRadius: 16,
+    backgroundColor: 'transparent',
+  },
+  scanHint: {
     color: 'white',
-    textAlign: 'center',
-    margin: 20,
-    fontSize: 16,
+    marginTop: 20,
+    fontSize: 15,
+    opacity: 0.8,
   },
+  loadingContainer: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: '#0A0010',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: { color: 'white', fontSize: 16 },
+  message: { color: 'white', textAlign: 'center', margin: 20, fontSize: 16 },
   resultContainer: {
     flex: 1,
     backgroundColor: '#0A0010',
@@ -106,27 +199,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
   },
-  resultTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#0A0010',
-  },
-  resultData: {
-    fontSize: 16,
-    color: '#555',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
+  errorTitle: { fontSize: 22, fontWeight: 'bold', color: '#0A0010' },
+  errorMsg: { fontSize: 14, color: '#f87171', textAlign: 'center' },
   button: {
     padding: 16,
-    marginHorizontal: 20,
-    marginBottom: 40,
+    paddingHorizontal: 40,
     borderRadius: 30,
     alignItems: 'center',
   },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
 });
