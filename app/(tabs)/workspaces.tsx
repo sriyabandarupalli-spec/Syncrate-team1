@@ -1,8 +1,10 @@
+// Workspaces Screen — shows all workspaces, passes workspaceId when tapping into one
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { supabase } from '../../lib/supabase'; // Adjust path if needed
+import { supabase } from '../../lib/supabase';
 
 export default function WorkspacesScreen() {
   const router = useRouter();
@@ -12,7 +14,6 @@ export default function WorkspacesScreen() {
   const fetchWorkspaces = async () => {
     try {
       setLoading(true);
-      // Selects all workspaces and orders them by newest first
       const { data, error } = await supabase
         .from('workspaces')
         .select('*')
@@ -27,7 +28,6 @@ export default function WorkspacesScreen() {
     }
   };
 
-  // Automatically refreshes whenever you navigate back to this screen
   useFocusEffect(
     useCallback(() => {
       fetchWorkspaces();
@@ -70,7 +70,19 @@ export default function WorkspacesScreen() {
       ) : (
         <ScrollView style={styles.list}>
           {workspaces.map((workspace) => (
-            <TouchableOpacity key={workspace.id} style={styles.card} onPress={() => router.push('/inventory')}>
+            <TouchableOpacity
+              key={workspace.id}
+              style={styles.card}
+              // pass the workspace ID and name to the inventory screen
+              // this is how inventory knows which workspace it's inside
+              onPress={() => router.push({
+                pathname: '/inventory',
+                params: {
+                  workspaceId: workspace.id,
+                  workspaceName: workspace.name,
+                }
+              })}
+            >
               <View style={styles.cardLeft}>
                 <Text style={styles.workspaceName}>{workspace.name}</Text>
                 <Text style={styles.companyName}>{workspace.industry || 'General'}</Text>

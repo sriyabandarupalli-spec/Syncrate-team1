@@ -1,15 +1,24 @@
-// Add Item Screen — saves a new inventory item to Supabase
+// Add Item Screen — adds a new item OR edits an existing one
+// if itemId is in params → edit mode (update), otherwise → add mode (insert)
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
 export default function AddItemScreen() {
   const router = useRouter();
 
-  // one state variable per form field so we can read the values when save is pressed
+  const { workspaceId, workspaceName, itemId } = useLocalSearchParams<{
+    workspaceId: string;
+    workspaceName: string;
+    itemId: string;
+  }>();
+
+  // if itemId exists we are editing, if not we are adding
+  const isEditing = !!itemId;
+
   const [productName, setProductName] = useState('');
   const [sku, setSku] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -20,10 +29,34 @@ export default function AddItemScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // if editing, fetch the existing item and pre-fill the form fields
+  // this way the user sees the current values and can change only what they want
+  useEffect(() => {
+    if (!itemId) return;
+    const fetchItem = async () => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('*')
+        .eq('id', itemId)
+        .single();
+
+      if (error || !data) return;
+
+      // pre-fill all fields with current values
+      setProductName(data.product_name || '');
+      setSku(data.sku || '');
+      setQuantity(String(data.quantity || 0));
+      setLocation(data.location || '');
+      setCategory(data.category || '');
+      setThreshold(String(data.low_stock_threshold || 0));
+      setNotes(data.notes || '');
+    };
+    fetchItem();
+  }, [itemId]);
+
   const handleSave = async () => {
     setError('');
 
-    // validate required fields before even touching Supabase
     if (!productName.trim()) {
       setError('Item name is required.');
       return;
@@ -32,55 +65,72 @@ export default function AddItemScreen() {
       setError('SKU is required.');
       return;
     }
+    if (!workspaceId) {
+      setError('No workspace selected. Go back and tap a workspace first.');
+      return;
+    }
 
     setLoading(true);
 
-    // get the logged in user — we need their ID to find their workspace
-    const { data: { user } } = await supabase.auth.getUser();
+    if (isEditing) {
+      // update the existing item row instead of creating a new one
+      const { error: updateError } = await supabase
+        .from('items')
+        .update({
+          product_name: productName.trim(),
+          sku: sku.trim().toUpperCase(),
+          quantity: parseInt(quantity) || 0,
+          location: location.trim(),
+          category: category.trim(),
+          low_stock_threshold: parseInt(threshold) || 0,
+          notes: notes.trim(),
+        })
+        .eq('id', itemId);
 
-    if (!user) {
-      setError('You must be logged in to add items.');
       setLoading(false);
-      return;
-    }
 
-    // find which workspace this user owns so we can attach the item to it
-    // .single() means we expect exactly one result back
-    const { data: workspace, error: workspaceError } = await supabase
-      .from('workspaces')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single();
+      if (updateError) {
+        setError(updateError.message);
+        return;
+      }
 
-    if (workspaceError || !workspace) {
-      setError('No workspace found. Please create a workspace first.');
+      Alert.alert('Success', 'Item updated!', [
+        {
+          text: 'OK', onPress: () => router.push({
+            pathname: '/inventory',
+            params: { workspaceId, workspaceName }
+          })
+        }
+      ]);
+    } else {
+      // insert a brand new item
+      const { error: insertError } = await supabase.from('items').insert({
+        workspace_id: workspaceId,
+        product_name: productName.trim(),
+        sku: sku.trim().toUpperCase(),
+        quantity: parseInt(quantity) || 0,
+        location: location.trim(),
+        category: category.trim(),
+        low_stock_threshold: parseInt(threshold) || 0,
+        notes: notes.trim(),
+      });
+
       setLoading(false);
-      return;
+
+      if (insertError) {
+        setError(insertError.message);
+        return;
+      }
+
+      Alert.alert('Success', 'Item added to inventory!', [
+        {
+          text: 'OK', onPress: () => router.push({
+            pathname: '/inventory',
+            params: { workspaceId, workspaceName }
+          })
+        }
+      ]);
     }
-
-    // insert the item — parseInt/parseFloat convert string inputs to numbers
-    // because TextInput always returns strings but the DB columns are numeric
-    const { error: insertError } = await supabase.from('items').insert({
-      workspace_id: workspace.id,
-      product_name: productName.trim(),
-      sku: sku.trim().toUpperCase(),
-      quantity: parseInt(quantity) || 0,
-      location: location.trim(),
-      category: category.trim(),
-      low_stock_threshold: parseInt(threshold) || 0,
-      notes: notes.trim(),
-    });
-
-    setLoading(false);
-
-    if (insertError) {
-      setError(insertError.message);
-      return;
-    }
-
-    Alert.alert('Success', 'Item added to inventory!', [
-      { text: 'OK', onPress: () => router.push('/inventory') }
-    ]);
   };
 
   return (
@@ -97,9 +147,14 @@ export default function AddItemScreen() {
       </TouchableOpacity>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>Add Item</Text>
+        {/* title changes based on whether we're adding or editing */}
+        <Text style={styles.title}>{isEditing ? 'Edit Item' : 'Add Item'}</Text>
+        {workspaceName ? (
+          <Text style={styles.workspaceLabel}>
+            {isEditing ? 'Editing in:' : 'Adding to:'} {workspaceName}
+          </Text>
+        ) : null}
 
-        {/* error banner — only shows if something went wrong */}
         {error ? (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>{error}</Text>
@@ -189,7 +244,7 @@ export default function AddItemScreen() {
             style={styles.button}
           >
             <Text style={styles.buttonText}>
-              {loading ? 'Saving...' : 'Save Item'}
+              {loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Save Item'}
             </Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -208,41 +263,26 @@ const styles = StyleSheet.create({
   backButton: { position: 'absolute', top: 60, left: 20, zIndex: 10 },
   backText: { color: 'white', fontSize: 24 },
   scroll: { paddingTop: 110, paddingHorizontal: 24, paddingBottom: 60 },
-  title: { color: 'white', fontSize: 26, fontWeight: 'bold', marginBottom: 20 },
+  title: { color: 'white', fontSize: 26, fontWeight: 'bold', marginBottom: 4 },
+  workspaceLabel: { color: '#C850C0', fontSize: 13, marginBottom: 20 },
   errorBox: {
-    backgroundColor: '#f8717120',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#f8717140',
+    backgroundColor: '#f8717120', borderRadius: 10, padding: 12,
+    marginBottom: 16, borderWidth: 1, borderColor: '#f8717140',
   },
   errorText: { color: '#f87171', fontSize: 14 },
   card: {
-    backgroundColor: '#ffffff10',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#ffffff20',
-    marginBottom: 20,
+    backgroundColor: '#ffffff10', borderRadius: 20, padding: 20,
+    borderWidth: 1, borderColor: '#ffffff20', marginBottom: 20,
   },
   label: { color: '#aaa', fontSize: 13, marginBottom: 6, marginTop: 14 },
   input: {
-    backgroundColor: '#ffffff10',
-    borderRadius: 10,
-    padding: 14,
-    color: 'white',
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: '#ffffff20',
+    backgroundColor: '#ffffff10', borderRadius: 10, padding: 14,
+    color: 'white', fontSize: 15, borderWidth: 1, borderColor: '#ffffff20',
   },
   skuRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   scanBtn: {
-    backgroundColor: '#ffffff10',
-    borderRadius: 10,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#ffffff20',
+    backgroundColor: '#ffffff10', borderRadius: 10, padding: 14,
+    borderWidth: 1, borderColor: '#ffffff20',
   },
   scanBtnText: { fontSize: 20 },
   textarea: { minHeight: 80, textAlignVertical: 'top' },

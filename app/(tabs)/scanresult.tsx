@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
-// TypeScript type describing what an item looks like from our DB
 type Item = {
   id: string;
   product_name: string;
@@ -24,29 +23,35 @@ type Item = {
   category: string;
   created_at: string;
   low_stock_threshold: number;
+  workspace_id: string;
 };
 
 export default function ScanResultScreen() {
   const router = useRouter();
 
-  // useLocalSearchParams reads the itemId we passed from the scanner screen
-  // this is how data gets passed between screens in Expo Router
-  const { itemId } = useLocalSearchParams<{ itemId: string }>();
+  // read itemId AND workspaceId/workspaceName from params
+  // workspaceId is needed so Edit Item knows where to save back to
+  const { itemId, workspaceId, workspaceName } = useLocalSearchParams<{
+    itemId: string;
+    workspaceId: string;
+    workspaceName: string;
+  }>();
 
   const [item, setItem] = useState<Item | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(0);
   const [savingQty, setSavingQty] = useState(false);
 
-  // fetch the item from Supabase when the screen loads
+  // clear item state every time itemId changes
+  // this fixes the bug where switching items shows stale data
   useEffect(() => {
+    setItem(null);
+    setLoading(true);
     if (!itemId) return;
     fetchItem();
   }, [itemId]);
 
   const fetchItem = async () => {
-    setLoading(true);
-
     const { data, error } = await supabase
       .from('items')
       .select('*')
@@ -65,10 +70,8 @@ export default function ScanResultScreen() {
     setQuantity(data.quantity);
   };
 
-  // update quantity in Supabase when + or - is tapped
-  // we update immediately so the user sees the change right away
   const updateQuantity = async (newQty: number) => {
-    if (newQty < 0) return; // quantity can't go below zero
+    if (newQty < 0) return;
     setQuantity(newQty);
     setSavingQty(true);
 
@@ -81,7 +84,7 @@ export default function ScanResultScreen() {
 
     if (error) {
       Alert.alert('Error', 'Could not update quantity.');
-      setQuantity(quantity); // revert if it failed
+      setQuantity(quantity);
     }
   };
 
@@ -96,14 +99,17 @@ export default function ScanResultScreen() {
           style: 'destructive',
           onPress: async () => {
             await supabase.from('items').delete().eq('id', itemId);
-            router.push('/inventory');
+            // go back to inventory and keep the workspace context
+            router.push({
+              pathname: '/inventory',
+              params: { workspaceId, workspaceName }
+            });
           },
         },
       ]
     );
   };
 
-  // derive status label from quantity vs threshold
   const getStatus = () => {
     if (!item) return 'Unknown';
     if (quantity === 0) return 'Out of Stock';
@@ -118,7 +124,6 @@ export default function ScanResultScreen() {
     return '#f87171';
   };
 
-  // format the created_at date into something readable
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
       month: 'short', day: 'numeric', year: 'numeric',
@@ -155,7 +160,7 @@ export default function ScanResultScreen() {
           <View style={styles.successCircle}>
             <Text style={styles.successIcon}>✓</Text>
           </View>
-          <Text style={styles.successText}>Scan Successful</Text>
+          <Text style={styles.successText}>Item Found</Text>
         </View>
 
         {/* item name + status */}
@@ -167,8 +172,13 @@ export default function ScanResultScreen() {
             <Text style={styles.itemName}>{item.product_name}</Text>
             <Text style={styles.itemSku}>{item.sku}</Text>
           </View>
-          <View style={[styles.statusBadge, { borderColor: getStatusColor() + '40', backgroundColor: getStatusColor() + '20' }]}>
-            <Text style={[styles.statusText, { color: getStatusColor() }]}>{getStatus()}</Text>
+          <View style={[styles.statusBadge, {
+            borderColor: getStatusColor() + '40',
+            backgroundColor: getStatusColor() + '20'
+          }]}>
+            <Text style={[styles.statusText, { color: getStatusColor() }]}>
+              {getStatus()}
+            </Text>
           </View>
         </View>
 
@@ -203,8 +213,15 @@ export default function ScanResultScreen() {
           ))}
         </View>
 
-        {/* edit button */}
-        <TouchableOpacity onPress={() => router.push({ pathname: '/additem', params: { itemId: item.id } })}>
+        {/* edit button — passes workspaceId so additem knows where to save */}
+        <TouchableOpacity onPress={() => router.push({
+          pathname: '/additem',
+          params: {
+            itemId: item.id,
+            workspaceId: item.workspace_id,
+            workspaceName: workspaceName,
+          }
+        })}>
           <LinearGradient
             colors={['#C850C0', '#8B2FC9']}
             start={{ x: 0, y: 0 }}
@@ -231,27 +248,20 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0A0010' },
   background: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   loadingContainer: {
-    flex: 1,
-    backgroundColor: '#0A0010',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
+    flex: 1, backgroundColor: '#0A0010',
+    justifyContent: 'center', alignItems: 'center', gap: 16,
   },
   loadingText: { color: 'white', fontSize: 16 },
   backButton: { position: 'absolute', top: 60, left: 20, zIndex: 10 },
   backText: { color: 'white', fontSize: 24 },
   scroll: { paddingTop: 110, paddingHorizontal: 24, paddingBottom: 60 },
   successRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-    gap: 10,
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', marginBottom: 24, gap: 10,
   },
   successCircle: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#C850C0',
-    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#C850C0', alignItems: 'center', justifyContent: 'center',
   },
   successIcon: { color: 'white', fontSize: 18, fontWeight: 'bold' },
   successText: { color: '#C850C0', fontSize: 16, fontWeight: '600' },
@@ -265,9 +275,7 @@ const styles = StyleSheet.create({
   topInfo: { flex: 1 },
   itemName: { color: 'white', fontSize: 17, fontWeight: 'bold' },
   itemSku: { color: '#888', fontSize: 12, marginTop: 2 },
-  statusBadge: {
-    borderRadius: 12, paddingVertical: 4, paddingHorizontal: 10, borderWidth: 1,
-  },
+  statusBadge: { borderRadius: 12, paddingVertical: 4, paddingHorizontal: 10, borderWidth: 1 },
   statusText: { fontSize: 11, fontWeight: '600' },
   qtyCard: {
     backgroundColor: '#ffffff10', borderRadius: 20, padding: 24,
