@@ -13,14 +13,14 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
+type AccountRole = 'warehouse_owner' | 'merchant_seller';
+type NextRoute = '/workspaces' | '/joinworkspace';
+
 export default function AccountTypeScreen() {
   const router = useRouter();
-  const [loadingRole, setLoadingRole] = useState<string | null>(null);
+  const [loadingRole, setLoadingRole] = useState<AccountRole | null>(null);
 
-  async function handleChooseRole(
-    role: 'warehouse_owner' | 'merchant_seller',
-    nextRoute: '/workspaces' | '/joinworkspace'
-  ) {
+  async function handleChooseRole(role: AccountRole, nextRoute: NextRoute) {
     try {
       setLoadingRole(role);
 
@@ -34,7 +34,10 @@ export default function AccountTypeScreen() {
       const authUser = userData.user;
 
       if (!authUser) {
-        Alert.alert('Not logged in', 'Please log in before choosing an account type.');
+        Alert.alert(
+          'Not logged in',
+          'Please log in before choosing an account type.'
+        );
         router.replace('/login');
         return;
       }
@@ -63,7 +66,19 @@ export default function AccountTypeScreen() {
         return;
       }
 
-      router.push(nextRoute);
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: {
+          display_name: displayName,
+          role,
+        },
+      });
+
+      if (metadataError) {
+        Alert.alert('Error', metadataError.message);
+        return;
+      }
+
+      router.replace(nextRoute);
     } catch (err) {
       console.error(err);
       Alert.alert('Error', 'Failed to save account type.');
@@ -81,7 +96,11 @@ export default function AccountTypeScreen() {
         style={styles.background}
       />
 
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+        disabled={loadingRole !== null}
+      >
         <Text style={styles.backText}>←</Text>
       </TouchableOpacity>
 
@@ -93,34 +112,44 @@ export default function AccountTypeScreen() {
       </View>
 
       <TouchableOpacity
-        style={styles.optionButton}
+        style={[
+          styles.optionButton,
+          loadingRole !== null && styles.disabledButton,
+        ]}
         disabled={loadingRole !== null}
         onPress={() => handleChooseRole('warehouse_owner', '/workspaces')}
       >
         <View style={styles.optionIcon}>
           <Text style={styles.optionEmoji}>🏭</Text>
         </View>
+
         <Text style={styles.optionText}>
           {loadingRole === 'warehouse_owner'
             ? 'Saving...'
             : 'Sign Up as Warehouse Owner'}
         </Text>
+
         <Text style={styles.arrow}>›</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.optionButton}
+        style={[
+          styles.optionButton,
+          loadingRole !== null && styles.disabledButton,
+        ]}
         disabled={loadingRole !== null}
         onPress={() => handleChooseRole('merchant_seller', '/joinworkspace')}
       >
         <View style={styles.optionIcon}>
           <Text style={styles.optionEmoji}>🛍️</Text>
         </View>
+
         <Text style={styles.optionText}>
           {loadingRole === 'merchant_seller'
             ? 'Saving...'
             : 'Sign Up as Merchant Seller'}
         </Text>
+
         <Text style={styles.arrow}>›</Text>
       </TouchableOpacity>
     </View>
@@ -172,6 +201,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#8B2FC9',
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
   optionIcon: {
     width: 40,

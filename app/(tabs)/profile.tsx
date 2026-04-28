@@ -30,7 +30,7 @@ export default function ProfileScreen() {
     name: '',
     email: '',
     role: 'User',
-    workspace: '—',
+    workspace: '_',
     memberSince: '—',
     initials: '👤',
   });
