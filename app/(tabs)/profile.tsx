@@ -1,4 +1,3 @@
-// Profile Screen — shows user info and account details
 
 // Profile Screen — shows user info and account details
 
@@ -29,8 +28,6 @@ export default function ProfileScreen() {
   const [user, setUser] = useState({
     name: '',
     email: '',
-    role: 'User',
-    workspace: '_',
     memberSince: '—',
     initials: '👤',
   });
@@ -74,8 +71,6 @@ export default function ProfileScreen() {
       setUser({
         name: displayName,
         email,
-        role: authUser.user_metadata?.role || 'User',
-        workspace: authUser.user_metadata?.workspace || '—',
         memberSince,
         initials,
       });
@@ -150,7 +145,6 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      {/* background gradient */}
       <LinearGradient
         colors={['#3D0040', '#1a0035', '#0A0010']}
         start={{ x: 0, y: 0 }}
@@ -158,7 +152,6 @@ export default function ProfileScreen() {
         style={styles.background}
       />
 
-      {/* header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.backText}>←</Text>
@@ -172,7 +165,6 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* avatar */}
         <View style={styles.avatarWrap}>
           <LinearGradient
             colors={['#C850C0', '#8B2FC9']}
@@ -188,10 +180,6 @@ export default function ProfileScreen() {
           <Text style={styles.userName}>
             {loading ? 'Loading...' : user.name}
           </Text>
-
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>{user.role}</Text>
-          </View>
 
           {isEditing && (
             <View style={styles.editCard}>
@@ -238,21 +226,20 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* info card */}
         <View style={styles.card}>
           {[
             { label: 'Email', value: user.email },
-            { label: 'Workspace', value: user.workspace },
             { label: 'Member Since', value: user.memberSince },
           ].map((row) => (
             <View key={row.label} style={styles.row}>
               <Text style={styles.rowLabel}>{row.label}</Text>
-              <Text style={styles.rowValue}>{loading ? 'Loading...' : row.value}</Text>
+              <Text style={styles.rowValue}>
+                {loading ? 'Loading...' : row.value}
+              </Text>
             </View>
           ))}
         </View>
 
-        {/* action buttons */}
         <View style={styles.card}>
           {[
             { label: '✏️  Edit Profile', onPress: handleEditProfile },
@@ -273,7 +260,6 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {/* sign out */}
         <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
@@ -340,19 +326,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 8,
-  },
-  roleBadge: {
-    backgroundColor: '#C850C020',
-    borderRadius: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#C850C040',
-  },
-  roleText: {
-    color: '#C850C0',
-    fontSize: 12,
-    fontWeight: '600',
   },
   card: {
     backgroundColor: '#ffffff10',
