@@ -1,11 +1,12 @@
-
-// Sign Up Screen — new users create an account with email, password, and display name
-
+import * as AuthSession from 'expo-auth-session';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../../lib/supabase';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -14,6 +15,32 @@ export default function SignupScreen() {
   const [repeatPassword, setRepeatPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      const redirectTo = AuthSession.makeRedirectUri();
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo, skipBrowserRedirect: true },
+      });
+      if (error || !data.url) {
+        Alert.alert('Error', error?.message ?? 'Could not open Google sign in');
+        return;
+      }
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      if (result.type === 'success') {
+        const { error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
+        if (sessionError) {
+          Alert.alert('Google Sign In Failed', sessionError.message);
+        } else {
+          router.replace('/accounttype');
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   async function handleSignUp() {
     if (password !== repeatPassword) {
@@ -112,7 +139,7 @@ export default function SignupScreen() {
         <Text style={styles.or}>or</Text>
 
         {/* google button */}
-        <TouchableOpacity style={styles.googleButton}>
+        <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin} disabled={loading}>
           <Text style={styles.googleText}>🔵 Continue with Google</Text>
         </TouchableOpacity>
       </View>

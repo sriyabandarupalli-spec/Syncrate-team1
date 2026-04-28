@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { supabase } from '@/lib/supabase';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -131,7 +132,7 @@ export default function SettingsScreen() {
 
         {/* danger zone */}
         <View style={styles.dangerCard}>
-          <TouchableOpacity style={styles.dangerRow} onPress={() => router.replace('/login')}>
+          <TouchableOpacity style={styles.dangerRow} onPress={() => supabase.auth.signOut()}>
             <Text style={styles.dangerText}>Sign Out</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.dangerRow}>
