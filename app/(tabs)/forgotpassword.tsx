@@ -1,7 +1,8 @@
+// Forgot Password Screen — sends a reset link via Supabase
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-// 1. MUST include StyleSheet here
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
@@ -19,14 +20,14 @@ export default function ForgotPasswordScreen() {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        // Change this to your actual app URL later
-        redirectTo: 'exp://localhost:19000/--/reset-password', 
+        redirectTo: 'exp://localhost:19000/--/reset-password',
       });
 
       if (error) throw error;
 
-      Alert.alert('Success', 'A password reset link has been sent to your email.');
-      router.push('/login'); 
+      Alert.alert('Email Sent', 'A password reset link has been sent to your email.', [
+        { text: 'OK', onPress: () => router.push('/login') }
+      ]);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
@@ -38,11 +39,13 @@ export default function ForgotPasswordScreen() {
     <View style={styles.container}>
       <LinearGradient
         colors={['#3D0040', '#1a0035', '#0A0010']}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.background}
       />
 
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+      {/* back → goes to login not further back */}
+      <TouchableOpacity style={styles.backButton} onPress={() => router.push('/login')}>
         <Text style={styles.backText}>←</Text>
       </TouchableOpacity>
 
@@ -67,10 +70,14 @@ export default function ForgotPasswordScreen() {
           <TouchableOpacity onPress={handleResetRequest} disabled={loading}>
             <LinearGradient
               colors={loading ? ['#444', '#333'] : ['#C850C0', '#8B2FC9']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
               style={styles.button}
             >
-              {loading ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Send Reset Link</Text>}
+              {loading
+                ? <ActivityIndicator color="white" />
+                : <Text style={styles.buttonText}>Send Reset Link</Text>
+              }
             </LinearGradient>
           </TouchableOpacity>
 
@@ -83,7 +90,6 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-// 2. MUST be outside the function above
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0A0010' },
   background: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },

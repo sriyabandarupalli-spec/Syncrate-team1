@@ -1,13 +1,14 @@
+// Create Workspace Screen — creates a new workspace in Supabase
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { supabase } from '../../lib/supabase'; // 1. Import your supabase client
+import { supabase } from '../../lib/supabase';
 
 export default function CreateWorkspaceScreen() {
   const router = useRouter();
 
-  // 2. State for all form fields
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
@@ -15,7 +16,6 @@ export default function CreateWorkspaceScreen() {
   const [selectedTeamSize, setSelectedTeamSize] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // 3. The Actual Save Function
   const handleCreate = async () => {
     if (!name.trim()) {
       Alert.alert('Required', 'Please enter a workspace name.');
@@ -25,23 +25,27 @@ export default function CreateWorkspaceScreen() {
     setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from('workspaces')
-        .insert([
-          {
-            name: name.trim(),
-            description: description.trim(),
-            location: location.trim(),
-            industry: selectedIndustry,
-            team_size: selectedTeamSize,
-            // owner_id: 1 // Only add this if your DB requires it and you aren't using Auth yet
-          },
-        ]);
+      // get the logged in user so we can set owner_id
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        Alert.alert('Error', 'You must be logged in to create a workspace.');
+        setLoading(false);
+        return;
+      }
+
+      const { error } = await supabase.from('workspaces').insert([{
+        name: name.trim(),
+        description: description.trim(),
+        location: location.trim(),
+        industry: selectedIndustry,
+        team_size: selectedTeamSize,
+        owner_id: user.id,
+      }]);
 
       if (error) throw error;
 
-      // Success! Go back to the main list
-      router.replace('/workspaces'); 
+      router.replace('/workspaces');
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
@@ -58,7 +62,8 @@ export default function CreateWorkspaceScreen() {
         style={styles.background}
       />
 
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+      {/* back → goes to workspaces not login */}
+      <TouchableOpacity style={styles.backButton} onPress={() => router.push('/workspaces')}>
         <Text style={styles.backText}>←</Text>
       </TouchableOpacity>
 
@@ -73,13 +78,13 @@ export default function CreateWorkspaceScreen() {
         </Text>
 
         <View style={styles.card}>
-          <Text style={styles.label}>Workspace Name</Text>
+          <Text style={styles.label}>Workspace Name *</Text>
           <TextInput
             style={styles.input}
             placeholder="e.g. Main Warehouse"
             placeholderTextColor="#666"
             value={name}
-            onChangeText={setName} // Connect state
+            onChangeText={setName}
           />
 
           <Text style={styles.label}>Location (optional)</Text>
@@ -88,7 +93,7 @@ export default function CreateWorkspaceScreen() {
             placeholder="e.g. Los Angeles, CA"
             placeholderTextColor="#666"
             value={location}
-            onChangeText={setLocation} // Connect state
+            onChangeText={setLocation}
           />
 
           <Text style={styles.label}>Description (optional)</Text>
@@ -99,7 +104,7 @@ export default function CreateWorkspaceScreen() {
             multiline
             numberOfLines={3}
             value={description}
-            onChangeText={setDescription} // Connect state
+            onChangeText={setDescription}
           />
 
           <Text style={styles.label}>Industry</Text>
@@ -158,7 +163,11 @@ const styles = StyleSheet.create({
   backButton: { position: 'absolute', top: 60, left: 20, zIndex: 10 },
   backText: { color: 'white', fontSize: 24 },
   scroll: { flexGrow: 1, paddingHorizontal: 30, paddingTop: 120, paddingBottom: 60, alignItems: 'center' },
-  iconWrap: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#ffffff10', borderWidth: 1, borderColor: '#ffffff20', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  iconWrap: {
+    width: 70, height: 70, borderRadius: 35,
+    backgroundColor: '#ffffff10', borderWidth: 1, borderColor: '#ffffff20',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 20,
+  },
   icon: { fontSize: 30 },
   heading: { color: 'white', fontSize: 26, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 },
   subheading: { color: '#aaa', fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 28, paddingHorizontal: 10 },

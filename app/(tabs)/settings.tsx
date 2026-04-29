@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -18,15 +18,9 @@ export default function SettingsScreen() {
   );
 
   const ToggleRow = ({
-    label,
-    sub,
-    value,
-    onToggle,
+    label, sub, value, onToggle,
   }: {
-    label: string;
-    sub?: string;
-    value: boolean;
-    onToggle: (v: boolean) => void;
+    label: string; sub?: string; value: boolean; onToggle: (v: boolean) => void;
   }) => (
     <View style={styles.row}>
       <View style={styles.rowLeft}>
@@ -49,9 +43,13 @@ export default function SettingsScreen() {
     </TouchableOpacity>
   );
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.replace('/login');
+  };
+
   return (
     <View style={styles.container}>
-      {/* background gradient */}
       <LinearGradient
         colors={['#3D0040', '#1a0035', '#0A0010']}
         start={{ x: 0, y: 0 }}
@@ -59,9 +57,9 @@ export default function SettingsScreen() {
         style={styles.background}
       />
 
-      {/* header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        {/* back → goes to workspaces not login */}
+        <TouchableOpacity onPress={() => router.push('/workspaces')}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
@@ -69,7 +67,6 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* notifications */}
         <Section title="Notifications" />
         <View style={styles.card}>
           <ToggleRow
@@ -86,17 +83,11 @@ export default function SettingsScreen() {
           />
         </View>
 
-        {/* appearance */}
         <Section title="Appearance" />
         <View style={styles.card}>
-          <ToggleRow
-            label="Dark Mode"
-            value={darkMode}
-            onToggle={setDarkMode}
-          />
+          <ToggleRow label="Dark Mode" value={darkMode} onToggle={setDarkMode} />
         </View>
 
-        {/* security */}
         <Section title="Security" />
         <View style={styles.card}>
           <ToggleRow
@@ -105,13 +96,9 @@ export default function SettingsScreen() {
             value={biometrics}
             onToggle={setBiometrics}
           />
-          <LinkRow
-            label="Change Password"
-            onPress={() => router.push('/forgotpassword')}
-          />
+          <LinkRow label="Change Password" onPress={() => router.push('/forgotpassword')} />
         </View>
 
-        {/* workspace */}
         <Section title="Workspace" />
         <View style={styles.card}>
           <LinkRow label="Manage Members" onPress={() => {}} />
@@ -119,7 +106,6 @@ export default function SettingsScreen() {
           <LinkRow label="Workspace Settings" onPress={() => {}} />
         </View>
 
-        {/* about */}
         <Section title="About" />
         <View style={styles.card}>
           <LinkRow label="Privacy Policy" onPress={() => {}} />
@@ -130,9 +116,8 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* danger zone */}
         <View style={styles.dangerCard}>
-          <TouchableOpacity style={styles.dangerRow} onPress={() => supabase.auth.signOut()}>
+          <TouchableOpacity style={styles.dangerRow} onPress={handleSignOut}>
             <Text style={styles.dangerText}>Sign Out</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.dangerRow}>
@@ -145,96 +130,40 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0010',
-  },
-  background: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-  },
+  container: { flex: 1, backgroundColor: '#0A0010' },
+  background: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 10,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 60, paddingHorizontal: 20, paddingBottom: 10,
   },
-  backText: {
-    color: 'white',
-    fontSize: 24,
-  },
-  headerTitle: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  scroll: {
-    paddingHorizontal: 20,
-    paddingBottom: 80,
-    paddingTop: 10,
-  },
+  backText: { color: 'white', fontSize: 24 },
+  headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },
+  scroll: { paddingHorizontal: 20, paddingBottom: 80, paddingTop: 10 },
   sectionTitle: {
-    color: '#888',
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginTop: 24,
-    marginBottom: 8,
-    marginLeft: 4,
+    color: '#888', fontSize: 12, fontWeight: '600',
+    letterSpacing: 1, textTransform: 'uppercase',
+    marginTop: 24, marginBottom: 8, marginLeft: 4,
   },
   card: {
-    backgroundColor: '#ffffff10',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#ffffff20',
-    overflow: 'hidden',
+    backgroundColor: '#ffffff10', borderRadius: 16,
+    borderWidth: 1, borderColor: '#ffffff20', overflow: 'hidden',
   },
   row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ffffff10',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 14, paddingHorizontal: 16,
+    borderBottomWidth: 1, borderBottomColor: '#ffffff10',
   },
-  rowLeft: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  rowLabel: {
-    color: 'white',
-    fontSize: 15,
-  },
-  rowSub: {
-    color: '#888',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  chevron: {
-    color: '#666',
-    fontSize: 20,
-  },
+  rowLeft: { flex: 1, paddingRight: 12 },
+  rowLabel: { color: 'white', fontSize: 15 },
+  rowSub: { color: '#888', fontSize: 12, marginTop: 2 },
+  chevron: { color: '#666', fontSize: 20 },
   dangerCard: {
-    backgroundColor: '#ffffff10',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#ffffff20',
-    overflow: 'hidden',
-    marginTop: 24,
+    backgroundColor: '#ffffff10', borderRadius: 16,
+    borderWidth: 1, borderColor: '#ffffff20', overflow: 'hidden', marginTop: 24,
   },
   dangerRow: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ffffff10',
-    alignItems: 'center',
+    paddingVertical: 16, paddingHorizontal: 16,
+    borderBottomWidth: 1, borderBottomColor: '#ffffff10', alignItems: 'center',
   },
-  dangerText: {
-    color: '#aaa',
-    fontSize: 15,
-  },
+  dangerText: { color: '#aaa', fontSize: 15 },
 });
