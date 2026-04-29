@@ -81,6 +81,12 @@ export default function SidebarScreen() {
           <Text style={styles.navIcon}>⚙️</Text>
           <Text style={styles.navText}>Settings</Text>
         </TouchableOpacity>
+
+        {/* join a workspace — for merchant sellers */}
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/joinworkspace')}>
+          <Text style={styles.navIcon}>🔗</Text>
+          <Text style={styles.navText}>Join a Workspace</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.divider} />

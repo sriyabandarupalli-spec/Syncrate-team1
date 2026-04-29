@@ -14,13 +14,38 @@ export default function WorkspacesScreen() {
   const fetchWorkspaces = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // get workspaces the user owns
+      const { data: ownedWorkspaces } = await supabase
         .from('workspaces')
         .select('*')
-        .order('created_at', { ascending: false });
+        .eq('owner_id', user?.id);
 
-      if (error) throw error;
-      if (data) setWorkspaces(data);
+      // get workspaces the user has joined as a member
+      const { data: memberships } = await supabase
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', user?.id);
+
+      // get the full workspace data for each membership
+      const memberWorkspaces: any[] = [];
+      if (memberships && memberships.length > 0) {
+        const ids = memberships.map((m: any) => m.workspace_id);
+        const { data: joined } = await supabase
+          .from('workspaces')
+          .select('*')
+          .in('id', ids);
+        if (joined) memberWorkspaces.push(...joined);
+      }
+
+      // combine owned and joined, remove duplicates, sort by newest
+      const all = [...(ownedWorkspaces || []), ...memberWorkspaces];
+      const unique = all.filter((w, i, self) => self.findIndex(x => x.id === w.id) === i);
+      unique.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setWorkspaces(unique);
     } catch (error) {
       console.error('Error fetching workspaces:', error);
     } finally {
@@ -73,8 +98,6 @@ export default function WorkspacesScreen() {
             <TouchableOpacity
               key={workspace.id}
               style={styles.card}
-              // pass the workspace ID and name to the inventory screen
-              // this is how inventory knows which workspace it's inside
               onPress={() => router.push({
                 pathname: '/inventory',
                 params: {
@@ -87,6 +110,13 @@ export default function WorkspacesScreen() {
                 <Text style={styles.workspaceName}>{workspace.name}</Text>
                 <Text style={styles.companyName}>{workspace.industry || 'General'}</Text>
                 <Text style={styles.itemCount}>{workspace.location || 'No location set'}</Text>
+                {/* show invite code so owner can share it with team */}
+                {workspace.invite_code ? (
+                  <View style={styles.codeRow}>
+                    <Text style={styles.codeLabel}>Invite Code: </Text>
+                    <Text style={styles.codeValue}>{workspace.invite_code}</Text>
+                  </View>
+                ) : null}
               </View>
               <View style={styles.cardRight}>
                 <Text style={styles.arrow}>›</Text>
@@ -119,6 +149,9 @@ const styles = StyleSheet.create({
   workspaceName: { color: 'white', fontSize: 15, fontWeight: 'bold', marginBottom: 4 },
   companyName: { color: '#C850C0', fontSize: 13, marginBottom: 4 },
   itemCount: { color: '#aaa', fontSize: 12 },
+  codeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
+  codeLabel: { color: '#666', fontSize: 11 },
+  codeValue: { color: '#C850C0', fontSize: 11, fontWeight: 'bold', letterSpacing: 1 },
   cardRight: { alignItems: 'flex-end' },
   arrow: { color: '#8B2FC9', fontSize: 24 },
   lastUpdated: { color: '#555', fontSize: 11, marginTop: 4 },

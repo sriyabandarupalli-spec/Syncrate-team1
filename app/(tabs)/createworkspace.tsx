@@ -6,6 +6,16 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
+// generates a random invite code like SYNC-4829
+function generateInviteCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = 'SYNC-';
+  for (let i = 0; i < 4; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
 export default function CreateWorkspaceScreen() {
   const router = useRouter();
 
@@ -34,6 +44,9 @@ export default function CreateWorkspaceScreen() {
         return;
       }
 
+      // generate a unique invite code for this workspace
+      const inviteCode = generateInviteCode();
+
       const { error } = await supabase.from('workspaces').insert([{
         name: name.trim(),
         description: description.trim(),
@@ -41,11 +54,18 @@ export default function CreateWorkspaceScreen() {
         industry: selectedIndustry,
         team_size: selectedTeamSize,
         owner_id: user.id,
+        invite_code: inviteCode,
       }]);
 
       if (error) throw error;
 
-      router.replace('/workspaces');
+      // show the invite code to the user so they can share it
+      Alert.alert(
+        'Workspace Created! 🎉',
+        `Your invite code is:\n\n${inviteCode}\n\nShare this with your team members so they can join.`,
+        [{ text: 'Got it!', onPress: () => router.replace('/workspaces') }]
+      );
+
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
