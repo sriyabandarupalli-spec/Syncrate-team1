@@ -21,16 +21,19 @@ type Item = {
   quantity: number;
   location: string;
   category: string;
+  supplier: string;
+  cost_per_unit: number;
+  date_recieved: string;
+  expected_ship_date: string;
   created_at: string;
   low_stock_threshold: number;
   workspace_id: string;
+  notes: string;
 };
 
 export default function ScanResultScreen() {
   const router = useRouter();
 
-  // read itemId AND workspaceId/workspaceName from params
-  // workspaceId is needed so Edit Item knows where to save back to
   const { itemId, workspaceId, workspaceName } = useLocalSearchParams<{
     itemId: string;
     workspaceId: string;
@@ -42,8 +45,7 @@ export default function ScanResultScreen() {
   const [quantity, setQuantity] = useState(0);
   const [savingQty, setSavingQty] = useState(false);
 
-  // clear item state every time itemId changes
-  // this fixes the bug where switching items shows stale data
+  // clear and refetch every time itemId changes — prevents stale data bug
   useEffect(() => {
     setItem(null);
     setLoading(true);
@@ -99,7 +101,6 @@ export default function ScanResultScreen() {
           style: 'destructive',
           onPress: async () => {
             await supabase.from('items').delete().eq('id', itemId);
-            // go back to inventory and keep the workspace context
             router.push({
               pathname: '/inventory',
               params: { workspaceId, workspaceName }
@@ -124,7 +125,8 @@ export default function ScanResultScreen() {
     return '#f87171';
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '—';
     return new Date(dateStr).toLocaleDateString('en-US', {
       month: 'short', day: 'numeric', year: 'numeric',
     });
@@ -182,7 +184,7 @@ export default function ScanResultScreen() {
           </View>
         </View>
 
-        {/* quantity card */}
+        {/* quantity card with + and - */}
         <View style={styles.qtyCard}>
           <Text style={styles.qtyLabel}>
             Current Quantity {savingQty ? '(saving...)' : ''}
@@ -198,22 +200,34 @@ export default function ScanResultScreen() {
           </View>
         </View>
 
-        {/* detail rows */}
+        {/* all item details */}
         <View style={styles.card}>
           {[
             { label: 'Location', value: item.location || '—' },
             { label: 'Category', value: item.category || '—' },
-            { label: 'Date Added', value: formatDate(item.created_at) },
+            { label: 'Supplier', value: item.supplier || '—' },
+            { label: 'Cost Per Unit', value: item.cost_per_unit ? `$${item.cost_per_unit}` : '—' },
+            { label: 'Date Received', value: formatDate(item.date_recieved) },
+            { label: 'Expected Ship Date', value: formatDate(item.expected_ship_date) },
             { label: 'Low Stock At', value: `${item.low_stock_threshold} units` },
+            { label: 'Date Added', value: formatDate(item.created_at) },
           ].map((row) => (
             <View key={row.label} style={styles.detailRow}>
               <Text style={styles.detailLabel}>{row.label}</Text>
               <Text style={styles.detailValue}>{row.value}</Text>
             </View>
           ))}
+
+          {/* notes — only show if there are notes */}
+          {item.notes ? (
+            <View style={styles.notesRow}>
+              <Text style={styles.detailLabel}>Notes</Text>
+              <Text style={styles.notesValue}>{item.notes}</Text>
+            </View>
+          ) : null}
         </View>
 
-        {/* edit button — passes workspaceId so additem knows where to save */}
+        {/* edit button */}
         <TouchableOpacity onPress={() => router.push({
           pathname: '/additem',
           params: {
@@ -232,7 +246,13 @@ export default function ScanResultScreen() {
           </LinearGradient>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/scanner')}>
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={() => router.push({
+            pathname: '/scanner',
+            params: { workspaceId, workspaceName }
+          })}
+        >
           <Text style={styles.secondaryButtonText}>📷 Scan Again</Text>
         </TouchableOpacity>
 
@@ -299,7 +319,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#ffffff10',
   },
   detailLabel: { color: '#888', fontSize: 14 },
-  detailValue: { color: 'white', fontSize: 14 },
+  detailValue: { color: 'white', fontSize: 14, maxWidth: '60%', textAlign: 'right' },
+  notesRow: { paddingVertical: 10 },
+  notesValue: { color: 'white', fontSize: 14, marginTop: 6, lineHeight: 20 },
   primaryButton: { padding: 16, borderRadius: 30, alignItems: 'center', marginBottom: 12 },
   primaryButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
   secondaryButton: {
